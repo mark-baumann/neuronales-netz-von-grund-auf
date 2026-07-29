@@ -384,3 +384,65 @@ class TestGradientCorrectness:
         rel_error = np.max(np.abs(dW_analytical - dW_numerical) /
                            (np.abs(dW_analytical) + np.abs(dW_numerical) + 1e-8))
         assert rel_error < 1e-5, f"Gradientenfehler: {rel_error:.2e}"
+
+
+# ═══════════════════════════════════════════════════════════════
+# W&B Integration Tests
+# ═══════════════════════════════════════════════════════════════
+
+class TestWandBTracker:
+    """Tests für WandBTracker aus wandb_utils.py."""
+
+    def test_import(self):
+        """WandBTracker ist importierbar."""
+        from wandb_utils import WandBTracker
+        assert WandBTracker is not None
+
+    def test_initialization_offline(self):
+        """WandBTracker initialisiert im Offline-Modus."""
+        from wandb_utils import WandBTracker
+        tracker = WandBTracker(
+            project="test-nn",
+            config={"lr": 0.1, "epochs": 10},
+            tags=["test"],
+            group="test-group",
+            job_type="test",
+            notes="Test-Run",
+            offline=True,
+        )
+        assert tracker is not None
+        tracker.finish()
+
+    def test_log_epoch(self):
+        """log_epoch() läuft ohne Fehler."""
+        from wandb_utils import WandBTracker
+        tracker = WandBTracker(project="test-nn", offline=True)
+        if tracker.is_active:
+            tracker.log_epoch(
+                epoch=1, train_loss=0.5, train_acc=0.92, test_acc=0.90, lr=0.1,
+            )
+        tracker.finish()
+
+    def test_log_final_results(self):
+        """log_final_results() läuft ohne Fehler."""
+        from wandb_utils import WandBTracker
+        tracker = WandBTracker(project="test-nn", offline=True)
+        if tracker.is_active:
+            tracker.log_final_results(
+                test_acc=0.95, num_params=109386, num_errors=500,
+            )
+        tracker.finish()
+
+    def test_finish_cleans_up(self):
+        """finish() beendet den Run sauber."""
+        from wandb_utils import WandBTracker
+        tracker = WandBTracker(project="test-nn", offline=True)
+        tracker.finish()
+        tracker.finish()  # Doppeltes finish() sollte safe sein
+
+    def test_is_active_property(self):
+        """is_active Property funktioniert."""
+        from wandb_utils import WandBTracker
+        tracker = WandBTracker(project="test-nn", offline=True)
+        assert isinstance(tracker.is_active, bool)
+        tracker.finish()

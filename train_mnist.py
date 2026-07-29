@@ -8,6 +8,13 @@ import numpy as np
 
 from nn_core import SGD, Dense, NeuralNetwork, ReLU
 
+# ── W&B (optional) ──────────────────────────────────────────
+try:
+    from wandb_utils import WandBTracker
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
+
 
 def load_mnist():
     """Lädt MNIST aus dem lokalen Cache oder lädt es herunter."""
@@ -54,6 +61,25 @@ def main():
     print("=" * 60)
     print("  Neuronales Netz von Grund auf — MNIST-Training")
     print("=" * 60)
+
+    # ── W&B Tracking ─────────────────────────────────────────
+    tracker = None
+    if WANDB_AVAILABLE:
+        tracker = WandBTracker(
+            project="neuronales-netz-von-grund-auf",
+            config={
+                "architecture": "784→128→64→10",
+                "optimizer": "SGD",
+                "learning_rate": 0.1,
+                "momentum": 0.9,
+                "batch_size": 64,
+                "epochs": 10,
+            },
+            tags=["mnist", "numpy", "from-scratch"],
+            group="mnist-experiments",
+            job_type="train",
+            notes="Selbstgebautes NN auf MNIST — nur NumPy",
+        )
 
     # ── Daten laden ──────────────────────────────────────────
     print("\n📦 Lade MNIST-Daten...")
@@ -112,6 +138,15 @@ def main():
               f"Train-Acc={avg_acc:.3f}  "
               f"Test-Acc={test_acc:.3f}")
 
+        # ── W&B Logging ──────────────────────────────────────
+        if tracker and tracker.is_active:
+            tracker.log_epoch(
+                epoch=epoch + 1,
+                train_loss=avg_loss,
+                train_acc=avg_acc,
+                test_acc=test_acc,
+            )
+
     # ── Finale Evaluation ────────────────────────────────────
     print("\n📊 Finale Evaluation:")
     test_preds = net.predict(X_test)
@@ -121,6 +156,15 @@ def main():
     # Fehleranalyse
     errors = [(true, pred) for true, pred in zip(y_test, test_preds) if true != pred]
     print(f"   Fehlklassifikationen: {len(errors)}/{len(y_test)}")
+
+    # ── W&B Finale Ergebnisse ────────────────────────────────
+    if tracker and tracker.is_active:
+        tracker.log_final_results(
+            test_acc=test_acc,
+            num_params=total_params,
+            num_errors=len(errors),
+        )
+        tracker.finish()
 
     print("\n✅ Training abgeschlossen!")
 
