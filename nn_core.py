@@ -138,20 +138,21 @@ class SGD:
         self.velocities = {}  # id(layer) -> {W: v_W, b: v_b}
 
     def step(self, layers: list[Dense]):
-        for i, layer in enumerate(layers):
-            if i not in self.velocities:
-                self.velocities[i] = {"W": 0, "b": 0}
+        for layer in layers:
+            lid = id(layer)
+            if lid not in self.velocities:
+                self.velocities[lid] = {"W": 0, "b": 0}
 
             # Momentum-Update
-            self.velocities[i]["W"] = (
-                self.momentum * self.velocities[i]["W"] - self.lr * layer.dW
+            self.velocities[lid]["W"] = (
+                self.momentum * self.velocities[lid]["W"] - self.lr * layer.dW
             )
-            self.velocities[i]["b"] = (
-                self.momentum * self.velocities[i]["b"] - self.lr * layer.db
+            self.velocities[lid]["b"] = (
+                self.momentum * self.velocities[lid]["b"] - self.lr * layer.db
             )
 
-            layer.W += self.velocities[i]["W"]
-            layer.b += self.velocities[i]["b"]
+            layer.W += self.velocities[lid]["W"]
+            layer.b += self.velocities[lid]["b"]
 
 
 # ═══════════════════════════════════════════════════════════════
