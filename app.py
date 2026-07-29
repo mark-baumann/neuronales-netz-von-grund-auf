@@ -1,239 +1,302 @@
 """
 Streamlit-App: Neuronales Netz von Grund auf
-=============================================
-NN-Architektur visualisieren, Forward-Pass animieren, Backpropagation erklären, MNIST-Training.
+============================================
+Interaktive Visualisierung: Architektur, Forward-Pass, Backpropagation,
+MNIST-Training live mit NumPy.
 """
 
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-from pathlib import Path
+import time
 import sys
+import os
 
-# Modul-Pfad hinzufügen
-sys.path.insert(0, str(Path(__file__).parent))
-
+# Repo-Module importieren
+sys.path.insert(0, os.path.dirname(__file__))
 from nn_core import Dense, ReLU, Sigmoid, Softmax, CrossEntropyLoss, SGD, NeuralNetwork
 
-st.set_page_config(page_title="NN von Grund auf", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="Neuronales Netz von Grund auf", layout="wide")
 st.title("🧠 Neuronales Netz von Grund auf")
-st.markdown("Nur mit NumPy — kein TensorFlow, kein PyTorch. Reine Mathematik!")
+st.markdown("### Nur mit NumPy — kein TensorFlow, kein PyTorch")
 
-page = st.sidebar.radio(
-    "Bereich wählen",
-    ["Architektur", "Forward-Pass", "Backpropagation", "MNIST-Training", "Gewichte visualisieren"]
-)
+tab1, tab2, tab3, tab4 = st.tabs([
+    "🏗️ Architektur", "⚡ Forward-Pass", "↩️ Backpropagation", "🏋️ MNIST-Training"
+])
 
-# ═══════════════════════════════════════════════════════════════════════════
-# ARCHITEKTUR
-# ═══════════════════════════════════════════════════════════════════════════
-if page == "Architektur":
+# ═══════════════════════════════════════════════════════════════
+# Tab 1: Architektur
+# ═══════════════════════════════════════════════════════════════
+with tab1:
     st.header("🏗️ Netzwerk-Architektur")
 
-    st.markdown("""
-    ### 784 → 128 → 64 → 10
-    
-    **Layer für Layer:**
-    """)
-
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2 = st.columns([1, 2])
 
     with col1:
-        st.subheader("Input-Layer")
-        st.markdown("""
-        **784 Neuronen**
-        - 28×28 Pixel = 784
-        - Jedes Pixel ein Input
-        - Werte: [0, 1] (normalisiert)
-        """)
-        st.metric("Dimension", "784")
+        st.subheader("Layer konfigurieren")
+        n_hidden = st.slider("Anzahl Hidden-Layer", 1, 5, 2)
+        layers_config = []
+        input_dim = 784
+        for i in range(n_hidden):
+            default = max(256 // (2**i), 10)
+            neurons = st.number_input(
+                f"Neuronen in Layer {i+1}",
+                min_value=2, max_value=512, value=default, step=2,
+                key=f"neurons_{i}"
+            )
+            layers_config.append(neurons)
+
+        output_dim = st.number_input("Output-Neuronen", 2, 100, 10, key="output_neurons")
 
     with col2:
-        st.subheader("Hidden-Layer 1")
-        st.markdown("""
-        **128 Neuronen + ReLU**
-        - Dense(784, 128)
-        - He-Initialisierung
-        - ReLU-Aktivierung
+        st.subheader("Visualisierung")
+
+        # Baue Architektur-Liste
+        dims = [input_dim] + layers_config + [output_dim]
+        layer_names = []
+        for i in range(len(dims) - 1):
+            layer_names.append(f"Dense({dims[i]}, {dims[i+1]})")
+            if i < len(dims) - 2:
+                layer_names.append("ReLU")
+
+        # Zeichne Architektur-Diagramm
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.set_xlim(-1, len(dims) * 2)
+        ax.set_ylim(-max(dims) / 2 - 20, max(dims) / 2 + 20)
+        ax.axis("off")
+
+        for i, dim in enumerate(dims):
+            x = i * 2
+            # Zeichne Neuronen als Kreise
+            max_show = min(dim, 20)
+            spacing = max(1, dim / max_show)
+            for j in range(max_show):
+                y = (j - max_show / 2) * spacing * 2
+                ax.add_patch(plt.Circle((x, y), 0.3, fill=True,
+                                        color="#4A90D9" if i == 0 else
+                                        "#50C878" if i == len(dims) - 1 else
+                                        "#FF6B6B", alpha=0.8))
+            # Label
+            label = f"Input\n{dim}" if i == 0 else f"Output\n{dim}" if i == len(dims) - 1 else f"Hidden {i}\n{dim}"
+            ax.text(x, -max(dims) / 2 - 15, label, ha="center", fontsize=9, fontweight="bold")
+
+            # Verbindungen zum nächsten Layer
+            if i < len(dims) - 1:
+                next_max = min(dims[i+1], 20)
+                next_spacing = max(1, dims[i+1] / next_max)
+                for j in range(min(max_show, 5)):
+                    y1 = (j - max_show / 2) * spacing * 2
+                    for k in range(min(next_max, 5)):
+                        y2 = (k - next_max / 2) * next_spacing * 2
+                        ax.plot([x + 0.3, x + 1.7], [y1, y2], 'gray', alpha=0.15, linewidth=0.5)
+
+        ax.set_title("Netzwerk-Architektur", fontsize=14, fontweight="bold")
+        st.pyplot(fig)
+
+        # Parameter zählen
+        total = sum(dims[i] * dims[i+1] + dims[i+1] for i in range(len(dims) - 1))
+        st.metric("Gesamt-Parameter", f"{total:,}")
+        st.caption(f"Gewichte: {sum(dims[i] * dims[i+1] for i in range(len(dims) - 1)):,} | "
+                   f"Biases: {sum(dims[i+1] for i in range(len(dims) - 1)):,}")
+
+    st.subheader("📖 Layer-Erklärung")
+    with st.expander("Dense Layer (Vollständig verbunden)", expanded=False):
+        st.markdown(r"""
+        **Formel:** $y = x \cdot W + b$
+
+        - **x**: Eingabevektor (z.B. 784 Pixel)
+        - **W**: Gewichtsmatrix — wird beim Training gelernt
+        - **b**: Bias — Verschiebung
+        - **Initialisierung**: He-Initialisierung $W \sim \mathcal{N}(0, \sqrt{2/n_{in}})$
+
+        Jedes Neuron ist mit **jedem** Neuron des vorherigen Layers verbunden.
         """)
-        st.metric("Parameter", f"{784*128 + 128:,}")
 
-    with col3:
-        st.subheader("Hidden-Layer 2")
-        st.markdown("""
-        **64 Neuronen + ReLU**
-        - Dense(128, 64)
-        - He-Initialisierung
-        - ReLU-Aktivierung
+    with st.expander("ReLU (Rectified Linear Unit)", expanded=False):
+        st.markdown(r"""
+        **Formel:** $f(x) = \max(0, x)$
+
+        - Negative Werte → 0
+        - Positive Werte → unverändert
+        - **Vorteil**: Kein "Vanishing Gradient" wie bei Sigmoid
+        - **Nachteil**: "Dying ReLU" — Neuronen, die immer 0 ausgeben
         """)
-        st.metric("Parameter", f"{128*64 + 64:,}")
+        x_relu = np.linspace(-5, 5, 100)
+        fig2, ax2 = plt.subplots(figsize=(6, 3))
+        ax2.plot(x_relu, np.maximum(0, x_relu), 'b-', linewidth=2)
+        ax2.axhline(0, color='gray', linestyle='--')
+        ax2.axvline(0, color='gray', linestyle='--')
+        ax2.set_title("ReLU: f(x) = max(0, x)")
+        ax2.set_xlabel("x")
+        ax2.set_ylabel("f(x)")
+        ax2.grid(True, alpha=0.3)
+        st.pyplot(fig2)
 
-    with col4:
-        st.subheader("Output-Layer")
-        st.markdown("""
-        **10 Neuronen (Logits)**
-        - Dense(64, 10)
-        - Keine Aktivierung
-        - Softmax + CrossEntropy
+    with st.expander("Softmax", expanded=False):
+        st.markdown(r"""
+        **Formel:** $\text{softmax}(x_i) = \frac{e^{x_i}}{\sum_j e^{x_j}}$
+
+        - Wandelt **Logits** (Rohwerte) in **Wahrscheinlichkeiten** um
+        - Summe aller Ausgaben = 1.0
+        - Die höchste Wahrscheinlichkeit "gewinnt" → Klassenvorhersage
         """)
-        st.metric("Parameter", f"{64*10 + 10:,}")
 
-    total = 784*128 + 128 + 128*64 + 64 + 64*10 + 10
-    st.metric("Gesamt-Parameter", f"{total:,}")
-
-    st.subheader("Aktivierungsfunktionen")
-    func = st.selectbox("Funktion wählen", ["ReLU", "Sigmoid", "Softmax"])
-
-    x = np.linspace(-5, 5, 200)
-    fig, ax = plt.subplots(figsize=(8, 4))
-
-    if func == "ReLU":
-        y = np.maximum(0, x)
-        ax.set_title("ReLU: f(x) = max(0, x)")
-    elif func == "Sigmoid":
-        y = 1 / (1 + np.exp(-x))
-        ax.set_title("Sigmoid: f(x) = 1/(1+e^(-x))")
-    else:
-        exp_x = np.exp(x - np.max(x))
-        y = exp_x / np.sum(exp_x)
-        ax.set_title("Softmax (Beispiel mit 200 Werten)")
-
-    ax.plot(x, y, linewidth=2, color="#FF6B6B")
-    ax.axhline(y=0, color="gray", linestyle="--", alpha=0.5)
-    ax.axvline(x=0, color="gray", linestyle="--", alpha=0.5)
-    ax.grid(True, alpha=0.3)
-    st.pyplot(fig)
-
-# ═══════════════════════════════════════════════════════════════════════════
-# FORWARD-PASS
-# ═══════════════════════════════════════════════════════════════════════════
-elif page == "Forward-Pass":
-    st.header("➡️ Forward-Pass — Schritt für Schritt")
+# ═══════════════════════════════════════════════════════════════
+# Tab 2: Forward-Pass
+# ═══════════════════════════════════════════════════════════════
+with tab2:
+    st.header("⚡ Forward-Pass Schritt für Schritt")
 
     st.markdown("""
-    Der Forward-Pass berechnet die Ausgabe des Netzwerks für einen Input.
-    
-    **Ablauf:**
-    1. Input → Dense-Layer 1: `h1 = x @ W1 + b1`
-    2. Aktivierung: `a1 = ReLU(h1)`
-    3. Dense-Layer 2: `h2 = a1 @ W2 + b2`
-    4. Aktivierung: `a2 = ReLU(h2)`
-    5. Dense-Layer 3: `logits = a2 @ W3 + b3`
-    6. Softmax: `probs = softmax(logits)`
+    Der **Forward-Pass** ist die Vorhersage-Phase: Daten fließen von links nach rechts
+    durch das Netzwerk, Layer für Layer.
     """)
 
-    if st.button("Forward-Pass mit Zufallsdaten simulieren"):
-        # Kleines Netzwerk bauen
-        net = NeuralNetwork([
-            Dense(784, 128), ReLU(),
-            Dense(128, 64), ReLU(),
-            Dense(64, 10),
+    if st.button("🔄 Forward-Pass simulieren", type="primary"):
+        # Kleines Demo-Netzwerk
+        demo_net = NeuralNetwork([
+            Dense(4, 3), ReLU(),
+            Dense(3, 2),
         ])
 
-        # Zufälligen Input
-        x = np.random.randn(1, 784).astype(np.float32) * 0.1
+        # Beispiel-Input
+        x_demo = np.array([[1.0, 0.5, -0.3, 2.0]])
 
-        # Forward-Pass mit Zwischenergebnissen
-        st.subheader("Zwischenergebnisse")
+        st.subheader("1. Input")
+        st.code(f"x = {x_demo.tolist()}  (4 Features)")
 
-        out = x
-        st.write(f"**Input:** Shape {out.shape}, Wertebereich [{out.min():.3f}, {out.max():.3f}]")
-
-        for i, layer in enumerate(net.layers):
+        # Schritt für Schritt
+        out = x_demo
+        step = 1
+        for layer in demo_net.layers:
             out = layer.forward(out)
             name = type(layer).__name__
-            if isinstance(layer, Dense):
-                st.write(f"**Layer {i}: {name}** → Shape {out.shape}, Wertebereich [{out.min():.3f}, {out.max():.3f}]")
-            else:
-                st.write(f"**Layer {i}: {name}** → Shape {out.shape}, Wertebereich [{out.min():.3f}, {out.max():.3f}]")
 
-        # Softmax-Probabilities
+            if isinstance(layer, Dense):
+                st.subheader(f"{step}. {name}")
+                st.markdown(f"**Gewichtsmatrix W** ({layer.W.shape[0]}×{layer.W.shape[1]}):")
+                st.dataframe(np.round(layer.W, 3))
+                st.markdown(f"**Bias b** (1×{layer.b.shape[1]}):")
+                st.dataframe(np.round(layer.b, 3))
+                st.markdown(f"**Berechnung:** `x @ W + b`")
+                st.code(f"Output = {np.round(out, 4).tolist()}")
+            elif isinstance(layer, ReLU):
+                st.subheader(f"{step}. {name}")
+                st.markdown(f"**Berechnung:** `max(0, x)` — negative Werte werden zu 0")
+                st.code(f"Output = {np.round(out, 4).tolist()}")
+
+            step += 1
+
+        st.subheader(f"{step}. Softmax (implizit in Loss)")
         shifted = out - np.max(out, axis=1, keepdims=True)
         exp = np.exp(shifted)
         probs = exp / np.sum(exp, axis=1, keepdims=True)
+        st.markdown("**Wandelt Logits in Wahrscheinlichkeiten:**")
+        st.code(f"Wahrscheinlichkeiten = {np.round(probs, 4).tolist()}")
+        st.markdown(f"**Vorhersage:** Klasse **{np.argmax(probs)}** "
+                    f"(Konfidenz: {probs[0, np.argmax(probs)]:.2%})")
 
-        st.subheader("Softmax-Wahrscheinlichkeiten")
-        fig, ax = plt.subplots(figsize=(8, 3))
-        ax.bar(range(10), probs[0], color="#4ECDC4", edgecolor="white")
-        ax.set_xlabel("Ziffer")
-        ax.set_ylabel("Wahrscheinlichkeit")
-        ax.set_title("Vorhergesagte Wahrscheinlichkeiten (vor Training)")
-        ax.set_xticks(range(10))
-        st.pyplot(fig)
+        st.success("✅ Forward-Pass abgeschlossen!")
 
-# ═══════════════════════════════════════════════════════════════════════════
-# BACKPROPAGATION
-# ═══════════════════════════════════════════════════════════════════════════
-elif page == "Backpropagation":
-    st.header("⬅️ Backpropagation — Gradienten fließen rückwärts")
+# ═══════════════════════════════════════════════════════════════
+# Tab 3: Backpropagation
+# ═══════════════════════════════════════════════════════════════
+with tab3:
+    st.header("↩️ Backpropagation Schritt für Schritt")
 
     st.markdown("""
-    ### Die Kettenregel in Aktion
-    
-    Backpropagation berechnet die Gradienten der Loss-Funktion bezüglich aller Parameter.
-    
-    **Ablauf (rückwärts):**
-    1. **Loss-Gradient:** `∂L/∂logits` (Softmax + CrossEntropy kombiniert)
-    2. **Layer 3:** `∂L/∂W3 = a2.T @ ∂L/∂logits`, `∂L/∂b3 = sum(∂L/∂logits)`
-    3. **ReLU 2:** `∂L/∂a2 = ∂L/∂h2 * (h2 > 0)` (Gradient nur wo Input > 0)
-    4. **Layer 2:** `∂L/∂W2 = a1.T @ ∂L/∂h2`
-    5. **ReLU 1:** Gradient durchreichen
-    6. **Layer 1:** `∂L/∂W1 = x.T @ ∂L/∂h1`
+    **Backpropagation** berechnet die Gradienten rückwärts durch das Netzwerk.
+    Das ist der "Lern"-Schritt — hier wird berechnet, wie stark jeder Parameter
+    zum Fehler beigetragen hat.
+
+    **Kettenregel:** $\frac{\partial L}{\partial W} = \frac{\partial L}{\partial y} \cdot \frac{\partial y}{\partial W}$
     """)
 
-    st.subheader("ReLU-Gradient visualisieren")
-    st.markdown("ReLU leitet den Gradienten nur durch, wenn der Input > 0 war. Sonst: 0.")
+    col_a, col_b = st.columns(2)
 
-    x = np.linspace(-5, 5, 200)
-    relu = np.maximum(0, x)
-    relu_grad = (x > 0).astype(float)
+    with col_a:
+        st.subheader("📐 Gradienten-Fluss")
+        st.markdown("""
+        | Schritt | Berechnung |
+        |---------|-----------|
+        | 1. Loss | $\frac{\partial L}{\partial \text{logits}}$ |
+        | 2. Dense (rückwärts) | $\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot W^T$ |
+        | 3. ReLU (rückwärts) | $\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot \mathbb{1}[x > 0]$ |
+        | 4. Dense (rückwärts) | $\frac{\partial L}{\partial W} = x^T \cdot \frac{\partial L}{\partial y}$ |
+        """)
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+    with col_b:
+        st.subheader("🔢 Beispiel-Rechnung")
+        if st.button("📊 Backpropagation demonstrieren", type="primary"):
+            # Mini-Netzwerk für Demo
+            bp_net = NeuralNetwork([
+                Dense(2, 3), ReLU(),
+                Dense(3, 2),
+            ])
 
-    ax1.plot(x, relu, linewidth=2, color="#FF6B6B")
-    ax1.set_title("ReLU: f(x) = max(0, x)")
-    ax1.grid(True, alpha=0.3)
+            x_bp = np.array([[0.5, -0.2]])
+            y_true = np.array([1])  # Zielklasse
 
-    ax2.plot(x, relu_grad, linewidth=2, color="#4ECDC4")
-    ax2.set_title("ReLU-Gradient: f'(x) = 1 wenn x>0, sonst 0")
-    ax2.set_ylim(-0.1, 1.1)
-    ax2.grid(True, alpha=0.3)
+            # Forward
+            logits = bp_net.forward(x_bp)
+            loss = bp_net.loss_fn.forward(logits, y_true)
 
-    st.pyplot(fig)
+            st.markdown(f"**Input:** {x_bp.tolist()}")
+            st.markdown(f"**Logits:** {np.round(logits, 4).tolist()}")
+            st.markdown(f"**Zielklasse:** {y_true[0]}")
+            st.markdown(f"**Loss:** {loss:.4f}")
 
-    st.subheader("SGD mit Momentum")
-    st.markdown("""
-    **Update-Regel:**
-    ```
-    v = momentum * v - lr * gradient
-    weight = weight + v
-    ```
-    
-    Momentum (0.9) beschleunigt die Konvergenz und glättet Oszillationen.
+            # Backward
+            grad = bp_net.loss_fn.backward()
+            st.markdown(f"**Loss-Gradient (dL/dlogits):**")
+            st.code(f"{np.round(grad, 4).tolist()}")
+
+            for layer in reversed(bp_net.layers):
+                grad = layer.backward(grad)
+                if isinstance(layer, Dense):
+                    st.markdown(f"**dW (Gradient der Gewichte):**")
+                    st.dataframe(np.round(layer.dW, 4))
+                    st.markdown(f"**db (Gradient des Bias):**")
+                    st.dataframe(np.round(layer.db, 4))
+
+            st.success("✅ Backpropagation demonstriert!")
+
+    st.subheader("📖 Die Intuition")
+    st.info("""
+    **Merkregel:** Backpropagation = "Wer war schuld am Fehler?"
+
+    1. Der Loss sagt: "Die Vorhersage war um X daneben"
+    2. Der Gradient fließt rückwärts und verteilt die "Schuld" auf jeden Parameter
+    3. Jeder Parameter wird proportional zu seinem Gradienten angepasst
+    4. Nächste Vorhersage ist (hoffentlich) besser!
     """)
 
-# ═══════════════════════════════════════════════════════════════════════════
-# MNIST-TRAINING
-# ═══════════════════════════════════════════════════════════════════════════
-elif page == "MNIST-Training":
+# ═══════════════════════════════════════════════════════════════
+# Tab 4: MNIST-Training
+# ═══════════════════════════════════════════════════════════════
+with tab4:
     st.header("🏋️ MNIST-Training live")
 
-    st.markdown("Trainiere das selbstgebaute NN auf MNIST — direkt in der App!")
+    st.markdown("""
+    Trainiere ein echtes Neuronales Netz auf dem MNIST-Datensatz (handgeschriebene Ziffern).
+    Alles live — du siehst, wie Loss und Accuracy sich verbessern!
+    """)
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        epochs = st.slider("Epochen", 1, 20, 5)
-    with col2:
-        lr = st.selectbox("Learning-Rate", [0.01, 0.05, 0.1, 0.2, 0.5], index=2)
-    with col3:
-        batch_size = st.selectbox("Batch-Size", [32, 64, 128], index=1)
+    col_cfg1, col_cfg2, col_cfg3 = st.columns(3)
+    with col_cfg1:
+        lr = st.select_slider("Learning Rate", options=[0.001, 0.01, 0.05, 0.1, 0.2, 0.5], value=0.1)
+    with col_cfg2:
+        batch_size = st.selectbox("Batch Size", [32, 64, 128], index=1)
+    with col_cfg3:
+        n_epochs = st.slider("Epochen", 1, 20, 5)
 
-    if st.button("Training starten", type="primary"):
-        from train_mnist import load_mnist
-
-        with st.spinner("Lade MNIST-Daten..."):
+    if st.button("🚀 Training starten", type="primary"):
+        # MNIST laden
+        with st.spinner("📦 Lade MNIST-Daten..."):
+            from train_mnist import load_mnist
             X_train, y_train, X_test, y_test = load_mnist()
-        st.success(f"✅ Daten geladen: {X_train.shape[0]:,} Train, {X_test.shape[0]:,} Test")
+
+        st.success(f"✅ Daten geladen: {X_train.shape[0]:,} Train / {X_test.shape[0]:,} Test")
 
         # Netzwerk bauen
         net = NeuralNetwork([
@@ -243,16 +306,16 @@ elif page == "MNIST-Training":
         ])
         optimizer = SGD(lr=lr, momentum=0.9)
 
-        # Training
+        # Live-Chart
+        chart_placeholder = st.empty()
+        metrics_placeholder = st.empty()
         progress_bar = st.progress(0)
-        status_text = st.empty()
-        loss_chart = st.empty()
-        acc_chart = st.empty()
 
-        train_losses = []
-        test_accs = []
+        loss_history = []
+        acc_history = []
+        test_acc_history = []
 
-        for epoch in range(epochs):
+        for epoch in range(n_epochs):
             # Shuffle
             idx = np.random.permutation(len(X_train))
             X_train, y_train = X_train[idx], y_train[idx]
@@ -261,9 +324,9 @@ elif page == "MNIST-Training":
             total_acc = 0
             n_batches = 0
 
-            for i in range(0, len(X_train), batch_size):
-                x_batch = X_train[i:i+batch_size]
-                y_batch = y_train[i:i+batch_size]
+            for i in range(0, min(len(X_train), 5000), batch_size):
+                x_batch = X_train[i:i + batch_size]
+                y_batch = y_train[i:i + batch_size]
                 loss, acc = net.train_step(x_batch, y_batch, optimizer)
                 total_loss += loss
                 total_acc += acc
@@ -271,65 +334,75 @@ elif page == "MNIST-Training":
 
             avg_loss = total_loss / n_batches
             avg_acc = total_acc / n_batches
-            test_preds = net.predict(X_test)
-            test_acc = np.mean(test_preds == y_test)
+            test_preds = net.predict(X_test[:2000])
+            test_acc = np.mean(test_preds == y_test[:2000])
 
-            train_losses.append(avg_loss)
-            test_accs.append(test_acc)
+            loss_history.append(avg_loss)
+            acc_history.append(avg_acc)
+            test_acc_history.append(test_acc)
 
-            progress_bar.progress((epoch + 1) / epochs)
-            status_text.text(f"Epoche {epoch+1}/{epochs}: Loss={avg_loss:.4f}, Train-Acc={avg_acc:.3f}, Test-Acc={test_acc:.3f}")
+            # Update Charts
+            fig_chart, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
 
-        # Plots
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+            ax1.plot(range(1, len(loss_history) + 1), loss_history, 'r-o', markersize=6)
+            ax1.set_title("Loss über Epochen", fontweight="bold")
+            ax1.set_xlabel("Epoche")
+            ax1.set_ylabel("Loss")
+            ax1.grid(True, alpha=0.3)
 
-        ax1.plot(range(1, epochs+1), train_losses, "b-o", linewidth=2)
-        ax1.set_title("Training Loss")
-        ax1.set_xlabel("Epoche")
-        ax1.set_ylabel("Loss")
-        ax1.grid(True, alpha=0.3)
+            ax2.plot(range(1, len(acc_history) + 1), acc_history, 'b-o', label="Train", markersize=6)
+            ax2.plot(range(1, len(test_acc_history) + 1), test_acc_history, 'g-s', label="Test", markersize=6)
+            ax2.set_title("Accuracy über Epochen", fontweight="bold")
+            ax2.set_xlabel("Epoche")
+            ax2.set_ylabel("Accuracy")
+            ax2.legend()
+            ax2.grid(True, alpha=0.3)
+            ax2.set_ylim(0, 1)
 
-        ax2.plot(range(1, epochs+1), test_accs, "g-o", linewidth=2)
-        ax2.set_title("Test-Accuracy")
-        ax2.set_xlabel("Epoche")
-        ax2.set_ylabel("Accuracy")
-        ax2.grid(True, alpha=0.3)
+            plt.tight_layout()
+            chart_placeholder.pyplot(fig_chart)
+            plt.close()
 
-        st.pyplot(fig)
+            metrics_placeholder.metric(
+                f"Epoche {epoch + 1}/{n_epochs}",
+                f"Test-Acc: {test_acc:.2%}",
+                f"Loss: {avg_loss:.4f} | Train-Acc: {avg_acc:.2%}"
+            )
+            progress_bar.progress((epoch + 1) / n_epochs)
 
-        st.success(f"✅ Training abgeschlossen! Finale Test-Accuracy: {test_accs[-1]:.4f}")
+        # Finale Evaluation
+        st.balloons()
+        final_preds = net.predict(X_test)
+        final_acc = np.mean(final_preds == y_test)
+        st.success(f"### 🎉 Training abgeschlossen! Finale Test-Accuracy: **{final_acc:.2%}**")
 
-# ═══════════════════════════════════════════════════════════════════════════
-# GEWICHTE VISUALISIEREN
-# ═══════════════════════════════════════════════════════════════════════════
-elif page == "Gewichte visualisieren":
-    st.header("🔍 Gewichte visualisieren")
+        # Zeige einige Vorhersagen
+        st.subheader("Beispiel-Vorhersagen")
+        n_show = 10
+        idx_show = np.random.choice(len(X_test), n_show, replace=False)
+        fig_samples, axes = plt.subplots(2, 5, figsize=(12, 5))
+        for i, ax in enumerate(axes.flat):
+            img_idx = idx_show[i]
+            ax.imshow(X_test[img_idx].reshape(28, 28), cmap='gray')
+            pred = final_preds[img_idx]
+            true = y_test[img_idx]
+            color = 'green' if pred == true else 'red'
+            ax.set_title(f"Pred: {pred} | True: {true}", color=color, fontweight='bold')
+            ax.axis('off')
+        plt.tight_layout()
+        st.pyplot(fig_samples)
 
-    st.markdown("""
-    Die Gewichte des ersten Layers (784×128) können als 28×28-Bilder visualisiert werden.
-    Jedes der 128 Neuronen lernt, auf bestimmte Muster zu reagieren.
-    """)
+st.sidebar.markdown("""
+### 📚 Über diese App
 
-    if st.button("Zufällige Gewichte anzeigen"):
-        # Zufällige Gewichte generieren (He-Initialisierung)
-        W = np.random.randn(784, 128) * np.sqrt(2.0 / 784)
+Diese App demonstriert ein **Neuronales Netz von Grund auf** —
+implementiert nur mit **NumPy**, ohne Deep-Learning-Frameworks.
 
-        n_cols = 8
-        n_rows = 4
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 6))
-        axes = axes.flatten()
+**Was du lernst:**
+- 🏗️ Wie ein NN aufgebaut ist
+- ⚡ Wie der Forward-Pass funktioniert
+- ↩️ Wie Backpropagation Gradienten berechnet
+- 🏋️ Wie Training in der Praxis aussieht
 
-        for i in range(n_rows * n_cols):
-            neuron_weights = W[:, i].reshape(28, 28)
-            axes[i].imshow(neuron_weights, cmap="RdBu", vmin=-0.5, vmax=0.5)
-            axes[i].set_title(f"Neuron {i+1}", fontsize=8)
-            axes[i].axis("off")
-
-        fig.suptitle("Gewichte des ersten Hidden-Layers (784→128)", fontsize=14)
-        st.pyplot(fig)
-
-        st.info("💡 Nach dem Training zeigen die Gewichte erkennbare Muster (Striche, Kurven, Kreise).")
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("📚 **NN von Grund auf** — Nur NumPy!")
-st.sidebar.markdown("[GitHub Repository](https://github.com/mark-baumann/neuronales-netz-von-grund-auf)")
+**Code:** `nn_core.py` im Repo
+""")
