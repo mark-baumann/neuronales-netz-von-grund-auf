@@ -209,7 +209,7 @@ with tab3:
     Das ist der "Lern"-Schritt — hier wird berechnet, wie stark jeder Parameter
     zum Fehler beigetragen hat.
 
-    **Kettenregel:** $\frac{\partial L}{\partial W} = \frac{\partial L}{\partial y} \cdot \frac{\partial y}{\partial W}$
+    **Kettenregel:** dL/dW = dL/dy · dy/dW
     """)
 
     col_a, col_b = st.columns(2)
@@ -219,10 +219,10 @@ with tab3:
         st.markdown("""
         | Schritt | Berechnung |
         |---------|-----------|
-        | 1. Loss | $\frac{\partial L}{\partial \text{logits}}$ |
-        | 2. Dense (rückwärts) | $\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot W^T$ |
-        | 3. ReLU (rückwärts) | $\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot \mathbb{1}[x > 0]$ |
-        | 4. Dense (rückwärts) | $\frac{\partial L}{\partial W} = x^T \cdot \frac{\partial L}{\partial y}$ |
+        | 1. Loss | dL/d(logits) |
+        | 2. Dense (rückwärts) | dL/dx = dL/dy · Wᵀ |
+        | 3. ReLU (rückwärts) | dL/dx = dL/dy · 𝟙[x > 0] |
+        | 4. Dense (rückwärts) | dL/dW = xᵀ · dL/dy |
         """)
 
     with col_b:
