@@ -8,8 +8,6 @@ Kein TensorFlow, kein PyTorch — nur Mathematik.
 """
 
 import numpy as np
-from typing import List, Tuple, Optional
-
 
 # ═══════════════════════════════════════════════════════════════
 # Aktivierungsfunktionen
@@ -83,7 +81,7 @@ class CrossEntropyLoss:
         # Numerisch stabil: log(softmax) = logits - log(sum(exp(logits)))
         shifted = logits - np.max(logits, axis=1, keepdims=True)
         log_sum_exp = np.log(np.sum(np.exp(shifted), axis=1))
-        correct_logits = logits[np.arange(N), y_true]
+        correct_logits = shifted[np.arange(N), y_true]
 
         loss = np.mean(log_sum_exp - correct_logits)
         self.cache = shifted
@@ -139,7 +137,7 @@ class SGD:
         self.momentum = momentum
         self.velocities = {}  # id(layer) -> {W: v_W, b: v_b}
 
-    def step(self, layers: List[Dense]):
+    def step(self, layers: list[Dense]):
         for i, layer in enumerate(layers):
             if i not in self.velocities:
                 self.velocities[i] = {"W": 0, "b": 0}
@@ -172,7 +170,7 @@ class NeuralNetwork:
         ])
     """
 
-    def __init__(self, architecture: List):
+    def __init__(self, architecture: list):
         self.layers = architecture
         self.loss_fn = CrossEntropyLoss()
 
@@ -189,7 +187,7 @@ class NeuralNetwork:
             grad = layer.backward(grad)
 
     def train_step(self, x: np.ndarray, y: np.ndarray,
-                   optimizer: SGD) -> Tuple[float, float]:
+                   optimizer: SGD) -> tuple[float, float]:
         """
         Ein Trainingsschritt: Forward → Loss → Backward → Update.
 
@@ -211,7 +209,7 @@ class NeuralNetwork:
         self.backward(grad)
 
         # Update
-        dense_layers = [l for l in self.layers if isinstance(l, Dense)]
+        dense_layers = [layer for layer in self.layers if isinstance(layer, Dense)]
         optimizer.step(dense_layers)
 
         return loss, acc

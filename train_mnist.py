@@ -5,7 +5,8 @@ Demonstriert: Daten laden, Training-Loop, Evaluation.
 """
 
 import numpy as np
-from nn_core import NeuralNetwork, Dense, ReLU, SGD
+
+from nn_core import SGD, Dense, NeuralNetwork, ReLU
 
 
 def load_mnist():
@@ -26,7 +27,7 @@ def load_mnist():
 
     base_url = "https://storage.googleapis.com/cvdf-datasets/mnist/"
 
-    for name, fname in files.items():
+    for fname in files.values():
         path = os.path.join(cache_dir, fname)
         if not os.path.exists(path):
             print(f"  Lade {fname} herunter...")
@@ -69,9 +70,9 @@ def main():
 
     # Parameter zählen
     total_params = sum(
-        l.W.size + l.b.size
-        for l in net.layers
-        if isinstance(l, Dense)
+        layer.W.size + layer.b.size
+        for layer in net.layers
+        if isinstance(layer, Dense)
     )
     print(f"   Parameter: {total_params:,}")
 
@@ -117,8 +118,7 @@ def main():
     test_acc = np.mean(test_preds == y_test)
     print(f"   Test-Accuracy: {test_acc:.4f} ({test_acc*100:.2f}%)")
 
-    # Confusion-Matrix (vereinfacht)
-    from collections import Counter
+    # Fehleranalyse
     errors = [(true, pred) for true, pred in zip(y_test, test_preds) if true != pred]
     print(f"   Fehlklassifikationen: {len(errors)}/{len(y_test)}")
 
