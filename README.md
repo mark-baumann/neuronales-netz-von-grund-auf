@@ -1,80 +1,90 @@
-# Neuronales Netz von Grund auf 🧠
+# 🧠 Neuronales Netz von Grund auf — Nur mit NumPy
 
-**Nur NumPy. Kein TensorFlow, kein PyTorch. Reine Mathematik.**
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![NumPy](https://img.shields.io/badge/NumPy-1.24%2B-013243.svg)](https://numpy.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B.svg)](https://streamlit.io/)
+[![Status](https://img.shields.io/badge/Status-Aktiv-brightgreen.svg)]()
 
-Dieses Repository implementiert ein vollständiges Feedforward-Neuronales Netzwerk von Grund auf — ideal zum Lernen und Verstehen der fundamentalen Konzepte.
+Ein vollständig von Hand implementiertes neuronales Netz — **ohne TensorFlow, ohne PyTorch, nur mit NumPy**. Dieses Projekt zeigt, was wirklich unter der Haube passiert: Forward-Pass, Backpropagation, Gradient Descent und Training auf MNIST — alles Schritt für Schritt nachvollziehbar und interaktiv visualisiert.
 
-## 📦 Enthaltene Komponenten
+## ✨ Features
 
-| Komponente | Beschreibung |
-|---|---|
-| `Dense` | Vollständig verbundener Layer: `y = x @ W + b` |
-| `ReLU` | Rectified Linear Unit: `f(x) = max(0, x)` |
-| `Sigmoid` | Sigmoid-Aktivierung: `f(x) = 1/(1+e^(-x))` |
-| `Softmax` | Softmax mit numerischer Stabilität |
-| `CrossEntropyLoss` | Cross-Entropy Loss (kombiniert mit Softmax) |
-| `SGD` | Stochastic Gradient Descent mit Momentum |
-| `NeuralNetwork` | Komplettes Netzwerk mit Forward/Backward/Train |
+- **🏗️ Architektur-Visualisierung** — Netzwerk-Topologie mit Layer-Dimensionen und Parameteranzahl
+- **⚡ Forward-Pass** — Live-Demonstration: Eingabe → Gewichtete Summe → Aktivierung → Ausgabe
+- **↩️ Backpropagation** — Gradientenfluss rückwärts durch das Netz, Schritt für Schritt erklärt
+- **🏋️ MNIST-Training** — Training auf echten MNIST-Daten mit Live-Verlustkurve
+- **🧩 Modulare Bausteine** — `Dense`, `ReLU`, `SGD` als wiederverwendbare Komponenten
+- **📊 W&B-Integration** — Experiment-Tracking mit Weights & Biases
+- **✅ Vollständig getestet** — Unit-Tests für alle Kernkomponenten
 
-## 🚀 Quickstart
+## 🚀 Installation
 
 ```bash
+# Repository klonen
+git clone https://github.com/mark-baumann/neuronales-netz-von-grund-auf.git
+cd neuronales-netz-von-grund-auf
+
+# Virtuelle Umgebung erstellen
+uv venv
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
+
 # Abhängigkeiten installieren
-uv pip install numpy
-
-# MNIST trainieren
-python train_mnist.py
+uv pip install -e ".[dev]"
 ```
 
-## 🧪 Erwartetes Ergebnis
+## 🎯 Nutzung
 
-Nach 10 Epochen auf MNIST:
-- **Test-Accuracy: ~97%**
-- Trainingszeit: ~30 Sekunden (CPU)
-- ~110.000 Parameter
-
-## 📖 Lernpfad
-
-1. **`nn_core.py`** — Die Bausteine verstehen:
-   - Wie funktioniert ein Dense-Layer? (Matrix-Multiplikation!)
-   - Was macht ReLU? (Nichtlinearität!)
-   - Wie funktioniert Backpropagation? (Kettenregel!)
-
-2. **`train_mnist.py`** — Das große Ganze:
-   - Daten laden und vorbereiten
-   - Training-Loop: Forward → Loss → Backward → Update
-   - Evaluation und Metriken
-
-3. **Experimente:**
-   - Andere Architekturen ausprobieren (mehr/weniger Layer)
-   - Learning-Rate und Momentum variieren
-   - Sigmoid statt ReLU testen
-
-## 🔬 Die Mathematik dahinter
-
-### Forward-Pass
-```
-h₁ = ReLU(x @ W₁ + b₁)
-h₂ = ReLU(h₁ @ W₂ + b₂)
-ŷ  = h₂ @ W₃ + b₃       (Logits)
+```bash
+# Streamlit-App starten
+streamlit run app.py
 ```
 
-### Backward-Pass (Kettenregel)
-```
-∂L/∂ŷ  → Loss.backward()
-∂L/∂h₂ ← ∂L/∂ŷ @ W₃ᵀ   (Dense.backward)
-∂L/∂h₁ ← ∂L/∂h₂ ⊙ ReLU'(h₂)  (ReLU.backward)
-...
+Die App öffnet sich im Browser unter `http://localhost:8501`. Erkunde die vier Tabs: Architektur, Forward-Pass, Backpropagation und MNIST-Training.
+
+## 🧪 Tests ausführen
+
+```bash
+pytest -v
 ```
 
-### Parameter-Update (SGD mit Momentum)
+## 🛠️ Tech-Stack
+
+| Technologie | Einsatz |
+|-------------|---------|
+| **NumPy** | Alle mathematischen Operationen (Matrix-Multiplikation, Aktivierungsfunktionen) |
+| **Streamlit** | Interaktive Web-App |
+| **Matplotlib** | Visualisierung von Trainingsverläufen und Architektur |
+| **Weights & Biases** | Experiment-Tracking |
+| **Pytest** | Test-Framework |
+| **Ruff** | Linting & Code-Qualität |
+
+## 📁 Projektstruktur
+
 ```
-v = β·v - η·∂L/∂W
-W = W + v
+neuronales-netz-von-grund-auf/
+├── app.py                  # Streamlit-Hauptapp
+├── pyproject.toml          # Projekt-Konfiguration
+├── nn_core.py              # Kern-Implementierung (Dense, ReLU, NeuralNetwork, SGD)
+├── train_mnist.py          # MNIST-Trainingsskript
+├── wandb_utils.py          # W&B-Integration
+├── test_nn_core.py         # Unit-Tests für nn_core
+└── tests/
+    └── test_wandb_utils.py # Tests für W&B-Utilities
 ```
 
-## 📚 Weiterführende Ressourcen
+## 🧮 Was du lernst
 
-- [3Blue1Brown: Neural Networks](https://www.youtube.com/playlist?list=PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi)
-- [Karpathy: micrograd](https://github.com/karpathy/micrograd)
-- [CS231n: Convolutional Neural Networks](http://cs231n.github.io/)
+- **Forward-Pass**: Wie aus Eingabedaten eine Vorhersage wird
+- **Backpropagation**: Wie der Fehler durch das Netz zurückfließt
+- **Gradient Descent**: Wie Gewichte optimiert werden
+- **Aktivierungsfunktionen**: ReLU und ihre Ableitung
+- **Loss-Funktionen**: Cross-Entropy für Klassifikation
+
+## 👤 Autor
+
+**Mark Baumann** — [GitHub](https://github.com/mark-baumann)
+
+---
+
+*Der beste Weg, neuronale Netze zu verstehen, ist, sie selbst zu bauen. Dieses Projekt verzichtet bewusst auf High-Level-Frameworks und zeigt jeden Rechenschritt.*
