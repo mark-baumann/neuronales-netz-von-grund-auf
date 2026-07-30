@@ -5,16 +5,16 @@ Interaktive Visualisierung: Architektur, Forward-Pass, Backpropagation,
 MNIST-Training live mit NumPy.
 """
 
-import streamlit as st
-import numpy as np
-import matplotlib.pyplot as plt
-import time
-import sys
 import os
+import sys
+
+import matplotlib.pyplot as plt
+import numpy as np
+import streamlit as st
 
 # Repo-Module importieren
 sys.path.insert(0, os.path.dirname(__file__))
-from nn_core import Dense, ReLU, Sigmoid, Softmax, CrossEntropyLoss, SGD, NeuralNetwork
+from nn_core import SGD, Dense, NeuralNetwork, ReLU
 
 st.set_page_config(page_title="Neuronales Netz von Grund auf", layout="wide")
 st.title("🧠 Neuronales Netz von Grund auf")
@@ -46,7 +46,9 @@ with tab1:
             )
             layers_config.append(neurons)
 
-        output_dim = st.number_input("Output-Neuronen", 2, 100, 10, key="output_neurons")
+        output_dim = st.number_input(
+            "Output-Neuronen", 2, 100, 10, key="output_neurons"
+        )
 
     with col2:
         st.subheader("Visualisierung")
@@ -77,8 +79,16 @@ with tab1:
                                         "#50C878" if i == len(dims) - 1 else
                                         "#FF6B6B", alpha=0.8))
             # Label
-            label = f"Input\n{dim}" if i == 0 else f"Output\n{dim}" if i == len(dims) - 1 else f"Hidden {i}\n{dim}"
-            ax.text(x, -max(dims) / 2 - 15, label, ha="center", fontsize=9, fontweight="bold")
+            if i == 0:
+                label = f"Input\n{dim}"
+            elif i == len(dims) - 1:
+                label = f"Output\n{dim}"
+            else:
+                label = f"Hidden {i}\n{dim}"
+            ax.text(
+                x, -max(dims) / 2 - 15, label,
+                ha="center", fontsize=9, fontweight="bold",
+            )
 
             # Verbindungen zum nächsten Layer
             if i < len(dims) - 1:
@@ -88,7 +98,10 @@ with tab1:
                     y1 = (j - max_show / 2) * spacing * 2
                     for k in range(min(next_max, 5)):
                         y2 = (k - next_max / 2) * next_spacing * 2
-                        ax.plot([x + 0.3, x + 1.7], [y1, y2], 'gray', alpha=0.15, linewidth=0.5)
+                        ax.plot(
+                            [x + 0.3, x + 1.7], [y1, y2],
+                            'gray', alpha=0.15, linewidth=0.5,
+                        )
 
         ax.set_title("Netzwerk-Architektur", fontsize=14, fontweight="bold")
         st.pyplot(fig)
@@ -96,8 +109,9 @@ with tab1:
         # Parameter zählen
         total = sum(dims[i] * dims[i+1] + dims[i+1] for i in range(len(dims) - 1))
         st.metric("Gesamt-Parameter", f"{total:,}")
-        st.caption(f"Gewichte: {sum(dims[i] * dims[i+1] for i in range(len(dims) - 1)):,} | "
-                   f"Biases: {sum(dims[i+1] for i in range(len(dims) - 1)):,}")
+        weights = sum(dims[i] * dims[i + 1] for i in range(len(dims) - 1))
+        biases = sum(dims[i + 1] for i in range(len(dims) - 1))
+        st.caption(f"Gewichte: {weights:,} | Biases: {biases:,}")
 
     st.subheader("📖 Layer-Erklärung")
     with st.expander("Dense Layer (Vollständig verbunden)", expanded=False):
@@ -107,7 +121,7 @@ with tab1:
         - **x**: Eingabevektor (z.B. 784 Pixel)
         - **W**: Gewichtsmatrix — wird beim Training gelernt
         - **b**: Bias — Verschiebung
-        - **Initialisierung**: He-Initialisierung $W \sim \mathcal{N}(0, \sqrt{2/n_{in}})$
+        - **Initialisierung**: He-Init $W \sim \mathcal{N}(0, \sqrt{2/n_{in}})$
 
         Jedes Neuron ist mit **jedem** Neuron des vorherigen Layers verbunden.
         """)
@@ -174,15 +188,18 @@ with tab2:
 
             if isinstance(layer, Dense):
                 st.subheader(f"{step}. {name}")
-                st.markdown(f"**Gewichtsmatrix W** ({layer.W.shape[0]}×{layer.W.shape[1]}):")
+                st.markdown(
+                    f"**Gewichtsmatrix W** "
+                    f"({layer.W.shape[0]}×{layer.W.shape[1]}):"
+                )
                 st.dataframe(np.round(layer.W, 3))
                 st.markdown(f"**Bias b** (1×{layer.b.shape[1]}):")
                 st.dataframe(np.round(layer.b, 3))
-                st.markdown(f"**Berechnung:** `x @ W + b`")
+                st.markdown("**Berechnung:** `x @ W + b`")
                 st.code(f"Output = {np.round(out, 4).tolist()}")
             elif isinstance(layer, ReLU):
                 st.subheader(f"{step}. {name}")
-                st.markdown(f"**Berechnung:** `max(0, x)` — negative Werte werden zu 0")
+                st.markdown("**Berechnung:** `max(0, x)` — negative Werte werden zu 0")
                 st.code(f"Output = {np.round(out, 4).tolist()}")
 
             step += 1
@@ -248,15 +265,15 @@ with tab3:
 
             # Backward
             grad = bp_net.loss_fn.backward()
-            st.markdown(f"**Loss-Gradient (dL/dlogits):**")
+            st.markdown("**Loss-Gradient (dL/dlogits):**")
             st.code(f"{np.round(grad, 4).tolist()}")
 
             for layer in reversed(bp_net.layers):
                 grad = layer.backward(grad)
                 if isinstance(layer, Dense):
-                    st.markdown(f"**dW (Gradient der Gewichte):**")
+                    st.markdown("**dW (Gradient der Gewichte):**")
                     st.dataframe(np.round(layer.dW, 4))
-                    st.markdown(f"**db (Gradient des Bias):**")
+                    st.markdown("**db (Gradient des Bias):**")
                     st.dataframe(np.round(layer.db, 4))
 
             st.success("✅ Backpropagation demonstriert!")
@@ -278,13 +295,18 @@ with tab4:
     st.header("🏋️ MNIST-Training live")
 
     st.markdown("""
-    Trainiere ein echtes Neuronales Netz auf dem MNIST-Datensatz (handgeschriebene Ziffern).
+    Trainiere ein echtes Neuronales Netz auf dem MNIST-Datensatz
+    (handgeschriebene Ziffern).
     Alles live — du siehst, wie Loss und Accuracy sich verbessern!
     """)
 
     col_cfg1, col_cfg2, col_cfg3 = st.columns(3)
     with col_cfg1:
-        lr = st.select_slider("Learning Rate", options=[0.001, 0.01, 0.05, 0.1, 0.2, 0.5], value=0.1)
+        lr = st.select_slider(
+            "Learning Rate",
+            options=[0.001, 0.01, 0.05, 0.1, 0.2, 0.5],
+            value=0.1,
+        )
     with col_cfg2:
         batch_size = st.selectbox("Batch Size", [32, 64, 128], index=1)
     with col_cfg3:
@@ -296,7 +318,10 @@ with tab4:
             from train_mnist import load_mnist
             X_train, y_train, X_test, y_test = load_mnist()
 
-        st.success(f"✅ Daten geladen: {X_train.shape[0]:,} Train / {X_test.shape[0]:,} Test")
+        st.success(
+            f"✅ Daten geladen: {X_train.shape[0]:,} Train "
+            f"/ {X_test.shape[0]:,} Test"
+        )
 
         # Netzwerk bauen
         net = NeuralNetwork([
@@ -350,8 +375,12 @@ with tab4:
             ax1.set_ylabel("Loss")
             ax1.grid(True, alpha=0.3)
 
-            ax2.plot(range(1, len(acc_history) + 1), acc_history, 'b-o', label="Train", markersize=6)
-            ax2.plot(range(1, len(test_acc_history) + 1), test_acc_history, 'g-s', label="Test", markersize=6)
+            epochs_range = range(1, len(acc_history) + 1)
+            ax2.plot(epochs_range, acc_history, 'b-o', label="Train", markersize=6)
+            ax2.plot(
+                epochs_range, test_acc_history, 'g-s',
+                label="Test", markersize=6,
+            )
             ax2.set_title("Accuracy über Epochen", fontweight="bold")
             ax2.set_xlabel("Epoche")
             ax2.set_ylabel("Accuracy")
@@ -374,7 +403,10 @@ with tab4:
         st.balloons()
         final_preds = net.predict(X_test)
         final_acc = np.mean(final_preds == y_test)
-        st.success(f"### 🎉 Training abgeschlossen! Finale Test-Accuracy: **{final_acc:.2%}**")
+        st.success(
+            f"### 🎉 Training abgeschlossen! "
+            f"Finale Test-Accuracy: **{final_acc:.2%}**"
+        )
 
         # Zeige einige Vorhersagen
         st.subheader("Beispiel-Vorhersagen")

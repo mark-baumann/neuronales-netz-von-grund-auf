@@ -13,7 +13,6 @@ Verwendung:
 
 import os
 import time
-from typing import Optional, List
 
 try:
     import wandb
@@ -36,11 +35,11 @@ class WandBTracker:
     def __init__(
         self,
         project: str = "neuronales-netz-von-grund-auf",
-        config: Optional[dict] = None,
-        tags: Optional[list] = None,
-        group: Optional[str] = None,
+        config: dict | None = None,
+        tags: list | None = None,
+        group: str | None = None,
         job_type: str = "train",
-        notes: Optional[str] = None,
+        notes: str | None = None,
         offline: bool = False,
     ):
         self.project = project
@@ -49,7 +48,8 @@ class WandBTracker:
 
         if WANDB_AVAILABLE:
             try:
-                mode = "offline" if offline or not os.environ.get("WANDB_API_KEY") else "online"
+                no_key = not os.environ.get("WANDB_API_KEY")
+                mode = "offline" if offline or no_key else "online"
                 self.run = wandb.init(
                     project=project,
                     config=config or {},
@@ -74,7 +74,7 @@ class WandBTracker:
             except Exception as e:
                 print(f"⚠️  W&B-Init fehlgeschlagen: {e}")
 
-    def log(self, metrics: dict, step: Optional[int] = None):
+    def log(self, metrics: dict, step: int | None = None):
         """Loggt Metriken zu W&B."""
         if self.run:
             self.run.log(metrics, step=step)
@@ -85,7 +85,7 @@ class WandBTracker:
         train_loss: float,
         train_acc: float,
         test_acc: float,
-        lr: Optional[float] = None,
+        lr: float | None = None,
     ):
         """Loggt eine Trainings-Epoche."""
         metrics = {
