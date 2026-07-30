@@ -20,7 +20,8 @@ def load_mnist():
     """Lädt MNIST aus dem lokalen Cache oder lädt es herunter."""
     import gzip
     import os
-    from urllib import request
+    import shutil
+    from urllib.request import urlopen
 
     cache_dir = os.path.join(os.path.dirname(__file__), ".mnist_cache")
     os.makedirs(cache_dir, exist_ok=True)
@@ -38,7 +39,8 @@ def load_mnist():
         path = os.path.join(cache_dir, fname)
         if not os.path.exists(path):
             print(f"  Lade {fname} herunter...")
-            request.urlretrieve(base_url + fname, path)
+            with urlopen(base_url + fname) as resp, open(path, "wb") as f:
+                shutil.copyfileobj(resp, f)
 
     def load_images(path):
         with gzip.open(path, "rb") as f:
